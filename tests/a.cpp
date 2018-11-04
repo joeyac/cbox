@@ -1,9 +1,9 @@
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
+#include <unistd.h>
 using namespace std;
-void func() {
-	printf("hello %d\n", 123);	
-}
 int main() {
-	func();
+	fprintf(stdout, "something to stdout\n");
+
+//	fprintf(stderr, "something to stderr\n");
 	return 0;
 }

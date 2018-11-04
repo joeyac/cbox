@@ -6,7 +6,7 @@ set(CMAKE_C_STANDARD 11)
 
 find_package(PythonLibs 3 REQUIRED)
 include_directories(${PYTHON_INCLUDE_DIRS})
-add_executable(cbox main.c main.h cbox.c core/syscall.c core/utils.h core/utils.c)
+add_executable(cbox main.c main.h cbox.c core/filter.c core/utils.h core/utils.c core/syscall-names.h core/helper.c core/helper.h core/filter.h)
 target_link_libraries(cbox ${PYTHON_LIBRARIES})
 
 
@@ -24,3 +24,7 @@ add_executable(sample dev/sample/example.c dev/sample/config.h dev/sample/seccom
 
 add_executable(course dev/course/main.c dev/course/syscall-names.h)
 target_link_libraries(course -lseccomp)
+
+
+add_executable(test tests/test.c core/filter.c  core/filter.h core/utils.h core/utils.c core/syscall-names.h core/helper.c core/helper.h tests/test.h)
+target_link_libraries(test -lseccomp )

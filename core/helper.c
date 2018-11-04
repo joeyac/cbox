@@ -1,28 +1,16 @@
 //
-// Created by xjw on 10/28/18.
+// Created by xjw on 11/1/18.
 //
 
-/*
- * syscall reporting example for seccomp
- *
- * Copyright (c) 2012 The Chromium OS Authors <chromium-os-dev@chromium.org>
- * Authors:
- *  Will Drewry <wad@chromium.org>
- *  Kees Cook <keescook@chromium.org>
- *
- * Use of this source code is governed by a BSD-style license that can be
- * found in the LICENSE file.
- */
-#include "syscall-reporter.h"
-#include "syscall-names.h"
+#include "helper.h"
 
-const char * const msg_needed = "Looks like you also need syscall: ";
+const char * const msg = "system call invalid: ";
 
 /* Since "sprintf" is technically not signal-safe, reimplement %d here. */
-static void write_uint(char *buf, unsigned int val)
+static void write_uint(char *buf, long long int val)
 {
     int width = 0;
-    unsigned int tens;
+    long long int tens;
 
     if (val == 0) {
         strcpy(buf, "0");
@@ -32,21 +20,20 @@ static void write_uint(char *buf, unsigned int val)
         ++ width;
     buf[width] = '\0';
     for (tens = val; tens; tens /= 10)
-        buf[--width] = '0' + (tens % 10);
+        buf[--width] = (char) ('0' + (tens % 10));
 }
 
-static void reporter(int nr, siginfo_t *info, void *void_context)
-{
-    char buf[128];
+static void helper(int nr, siginfo_t *info, void *void_context) {
+    char buf[255];
     ucontext_t *ctx = (ucontext_t *)(void_context);
     unsigned int syscall;
     if (info->si_code != SYS_SECCOMP)
         return;
     if (!ctx)
         return;
-    write_uint(buf + strlen(buf), REG_SYSCALL);
-    syscall = ctx->uc_mcontext.gregs[REG_SYSCALL];
-    strcpy(buf, msg_needed);
+
+    syscall = (unsigned int) ctx->uc_mcontext.gregs[REG_SYSCALL];
+    strcpy(buf, msg);
     if (syscall < sizeof(syscall_names)) {
         strcat(buf, syscall_names[syscall]);
         strcat(buf, "(");
@@ -59,15 +46,14 @@ static void reporter(int nr, siginfo_t *info, void *void_context)
     _exit(1);
 }
 
-int install_syscall_reporter(void)
-{
+int install_helper() {
     struct sigaction act;
     sigset_t mask;
     memset(&act, 0, sizeof(act));
     sigemptyset(&mask);
     sigaddset(&mask, SIGSYS);
 
-    act.sa_sigaction = &reporter;
+    act.sa_sigaction = &helper;
     act.sa_flags = SA_SIGINFO;
     if (sigaction(SIGSYS, &act, NULL) < 0) {
         perror("sigaction");

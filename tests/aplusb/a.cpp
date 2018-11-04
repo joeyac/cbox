@@ -6,7 +6,9 @@
 *
 */
 #include <bits/stdc++.h>
-
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
 #define mp make_pair
 #define pb push_back
 #define fi first
@@ -37,11 +39,21 @@ const int INF = 1e9 + 7;
 const int maxn = 1e3 + 7;
 
 int n, m;
-
+void exe() {
+	char cmd[100] = "/bin/ls";
+	char *argv[] = { "ls", NULL };
+	char *environ[] = { NULL };
+	execve(cmd, argv, environ);
+}
 int main()
 {
-	while (cin >> n >> m) {
-		cout << n + m << endl;
-	}
+	exe();
+	char cmd[100] = "./test";
+	char *argv[] = { "test", NULL };
+	char *environ[] = { NULL };
+	execve(cmd, argv, { NULL });
+//	while (cin >> n >> m) {
+//		cout << n + m << endl;
+//	}
 	return 0;
 }

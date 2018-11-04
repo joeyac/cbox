@@ -44,6 +44,10 @@ FILE *Fopen(const char *filename, const char *mode);
 int Chdir(const char *path);
 /* built-in functions end */
 
+/* built-in functions */
+
+/* built-in functions end */
+
 /* cbox functions and defines */
 typedef struct child_config {
     unsigned long cpu_time;

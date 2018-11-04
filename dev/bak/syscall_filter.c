@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "subdir/config.h"
-#include "subdir/seccomp-bpf.h"
-#include "subdir/syscall-reporter.h"
+#include "../sample/config.h"
+#include "../sample/seccomp-bpf.h"
+#include "../sample/syscall-reporter.h"
 
 void export_scmp_filter() {
 //    FILE *f = fopen("bpf.out", "w");
@@ -68,7 +68,7 @@ void export_scmp_filter() {
     // 以上为一个最基础的hello world程序所需系统调用
 
     seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(execve), 0);
-    seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(chdir), 0);
+//    seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(chdir), 0);
 
     seccomp_load(ctx);
 
@@ -138,8 +138,8 @@ int main() {
     export_scmp_filter();
 
     openPublic();
-    openPrivate();
-//    openPublic();
+    chdir("/");
+//    exe();
 //    openPrivate();
     return 0;
 }
