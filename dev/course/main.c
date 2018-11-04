@@ -170,37 +170,31 @@ void child() {
 static int wait_for_syscall(pid_t child)
 {
     int status;
-    char buf[255];
 
     while (1) {
         ptrace(PTRACE_CONT, child, 0, 0);
         int ret = waitpid(child, &status, 0);
+
         printf("[waitpid status: 0x%08x]\n", status);
         printf("pid:%d, ret:%d, status=%d, %s\n", getpid(), ret, status, strerror(errno));
         print_exit(status);
-
-        if (WIFEXITED(status) || WIFSIGNALED(status) )
+        if (WIFEXITED(status) || WIFSIGNALED(status) ) {
+            puts("exited");
             return 1;
+        }
 
         // 判断是否是seccomp限制的规则，这个判断条件可以在ptrace文档中找到
         if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
-            long syscall, arg0;
+            long syscall;
             syscall = ptrace(PTRACE_PEEKUSER, child, sizeof(long)*ORIG_RAX, 0);
-            arg0 = ptrace(PTRACE_PEEKUSER, child, sizeof(long)*RDI, 0);
-
-            strcpy(buf, msg);
-            if (syscall < sizeof(syscall_names)) {
-                strcat(buf, syscall_names[syscall]);
-                strcat(buf, "(");
-            }
-            write_uint(buf + strlen(buf), syscall);
-            if (syscall < sizeof(syscall_names))
-                strcat(buf, ")");
-            strcat(buf, ": arg1=");
-            write_uint(buf + strlen(buf), arg0);
-            strcat(buf, "\n");
-            write(STDOUT_FILENO, buf, strlen(buf));
-//            ptrace(PTRACE_KILL, child, 0, 0);
+//            long arg0;
+//            arg0 = ptrace(PTRACE_PEEKUSER, child, sizeof(long)*RDI, 0);
+            struct user_regs_struct regs;
+            ptrace(PTRACE_GETREGS, child, NULL, &regs);
+            printf("system call invalid: %s(%ld) with args: 0x%llx 0x%llx 0x%llx\n",
+                   syscall < sizeof(syscall_names) ? syscall_names[syscall] : "null",
+                   syscall,
+                   regs.rdi, regs.rsi, regs.rdx);
             kill(child, SIGKILL);
             return 0;
         }
