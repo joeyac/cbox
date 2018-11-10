@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "cert-err34-c"
 //
 // Created by xjw on 10/20/18.
 //
@@ -52,5 +50,3 @@ PyInit_cbox(void)
     PyModule_AddObject(m, "error", CboxError);
     return m;
 }
-
-#pragma clang diagnostic pop

@@ -2,6 +2,7 @@
 // Created by xjw on 10/21/18.
 //
 #include "utils.h"
+#include "wrappers_tracee.h"
 
 // wrapper of useful function
 // send user signal if failed
@@ -48,22 +49,10 @@ void Setrlimit(__rlimit_resource_t resource, const struct rlimit *rlimits) {
 }
 
 
-void Execve(const char *filename, char *const *argv, char *const *envp) {
-    if (execve(filename, argv, envp) < 0)
-        unix_error("Execve error");
-}
-
 void Close(int fd) {
     int rc;
     if ((rc = close(fd)) < 0)
         unix_error("Close error");
-}
-
-int Dup2(int fd1, int fd2) {
-    int rc;
-    if ((rc = dup2(fd1, fd2)) < 0)
-        unix_error("Dup2 error");
-    return rc;
 }
 
 void Fclose(FILE *fp) {
@@ -78,12 +67,6 @@ FILE *Fopen(const char *filename, const char *mode) {
     return fp;
 }
 
-int Chdir(const char *path) {
-    int rc;
-    if ((rc = chdir(path)) < 0)
-        unix_error("Chdir failed");
-    return rc;
-}
 /* built-in functions end */
 
 

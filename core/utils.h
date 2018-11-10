@@ -31,17 +31,16 @@ void app_error(char *msg);
 /* built-in functions */
 void Setrlimit(__rlimit_resource_t resource, const struct rlimit * rlimits);
 
-void Execve(const char *filename, char *const argv[], char *const envp[]);
+void e_execve(const char *filename, char *const *argv, char *const *envp);
 
 void Close(int fd);
 
-int Dup2(int fd1, int fd2);
+int e_dup2(int fd1, int fd2);
 
 void Fclose(FILE *fp);
 
 FILE *Fopen(const char *filename, const char *mode);
 
-int Chdir(const char *path);
 /* built-in functions end */
 
 /* built-in functions */

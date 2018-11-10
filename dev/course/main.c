@@ -20,9 +20,11 @@
 #include <wait.h>
 #include <errno.h>
 
+#include <sys/time.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <sys/reg.h>
+#include <stdlib.h>
 
 #include "syscall-names.h"
 
@@ -133,7 +135,9 @@ void print_exit(int status)
 }
 
 void child() {
+    printf("child before ptrace PTRACE_TRACEME\n");
     ptrace(PTRACE_TRACEME, 0, NULL, NULL);
+    printf("child after ptrace PTRACE_TRACEME\n");
 
     // 不允许子进程获得新权限
     prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
@@ -148,7 +152,6 @@ void child() {
     seccomp_rule_add(ctx, SCMP_ACT_TRACE(getppid()), SCMP_SYS(write), 1, SCMP_A0(SCMP_CMP_NE, STDOUT_FILENO));
 
 //        seccomp_rule_add(ctx, SCMP_ACT_TRAP, SCMP_SYS(write), 0);
-
     // 应用过滤器
     seccomp_load(ctx);
 
@@ -156,33 +159,93 @@ void child() {
     seccomp_release(ctx);
 
     // 用a.cpp替换子进程
-    char cmd[100] = "/home/xjw/Desktop/crazyX/team/LETTersOnline/crazybox/cbox/tests/a";
-    char *argv[] = { "a", NULL };
+    char cmd[100] = "/home/xjw/Desktop/crazyX/team/LETTersOnline/crazybox/cbox/tests/a5.o";
+    char *argv[] = { NULL };
     char *environ[] = { NULL };
 
+//    sleep(2);
+//    printf("child before ptrace stop\n");
+    kill(getpid(), SIGSTOP);
+//    printf("child after ptrace stop\n");
     execve(cmd, argv, environ);
     puts("ERROR:");
     puts(strerror(errno));
     _exit(1);
 }
 
+pid_t child_pid;
+void killer(int sig) {
+    // 终止子进程，用于超出wall time等异常情况
+    struct sigaction sigact;
+
+    /* Reset signal handlers to default */
+    sigact.sa_handler = SIG_DFL;
+    sigact.sa_flags = 0;
+    if (sigemptyset(&sigact.sa_mask) != 0) {
+        puts("could not initialize signal mask");
+    }
+    if (sigaction(SIGTERM,&sigact,NULL) != 0) {
+        puts("could not restore signal handler");
+    }
+    if (sigaction(SIGALRM,&sigact,NULL) != 0) {
+        puts("could not restore signal handler");
+    }
+    if (sig == SIGALRM) {
+        puts("wall time limit exceeded");
+    } else {
+        puts("received signal %d: aborting command");
+    }
+    /* First try to kill graciously, then hard.
+    Don't report an already exited process as error. */
+    printf("%d %d\n", getpid(), child_pid);
+    if (kill(-child_pid, SIGTERM) < 0) {
+        fprintf(stderr, "kill child1: %s\n", strerror(errno));
+    }
+    sleep(1);
+    if (kill(-child_pid, SIGKILL) < 0) {
+        fprintf(stderr, "kill child2: %s\n", strerror(errno));
+    }
+}
+
 
 static int wait_for_syscall(pid_t child)
 {
     int status;
+    struct sigaction sigact;
+    sigset_t mask;
+    sigemptyset(&mask);
+
+    if ( sigaddset(&mask,SIGALRM)!=0 ||
+         sigaddset(&mask,SIGTERM)!=0 ) puts("setting signal mask");
+    sigact.sa_handler = killer;
+    sigact.sa_flags   = SA_RESETHAND | SA_RESTART;
+    sigact.sa_mask    = mask;
+    if ( sigaction(SIGTERM,&sigact,NULL)!=0 ) {
+        puts("installing signal handler");
+    }
+    if ( sigaction(SIGALRM,&sigact,NULL)!=0 ) {
+        puts("installing signal handler");
+    }
+    struct itimerval itimer;
+    itimer.it_interval.tv_sec  = 0;
+    itimer.it_interval.tv_usec = 0;
+    itimer.it_value.tv_sec  = 2;
+    itimer.it_value.tv_usec = 0;
+    if ( setitimer(ITIMER_REAL,&itimer,NULL)!=0 ) {
+        puts("setting timer");
+    }
 
     while (1) {
+        puts("=========start=======");
+        printf("before ptrace continue\n");
         ptrace(PTRACE_CONT, child, 0, 0);
-        int ret = waitpid(child, &status, 0);
+        printf("after ptrace continue\n");
 
+        int ret = waitpid(child, &status, 0);
         printf("[waitpid status: 0x%08x]\n", status);
         printf("pid:%d, ret:%d, status=%d, %s\n", getpid(), ret, status, strerror(errno));
         print_exit(status);
-        if (WIFEXITED(status) || WIFSIGNALED(status) ) {
-            puts("exited");
-            return 1;
-        }
-
+        puts("=========end=======");
         // 判断是否是seccomp限制的规则，这个判断条件可以在ptrace文档中找到
         if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
             long syscall;
@@ -198,6 +261,13 @@ static int wait_for_syscall(pid_t child)
             kill(child, SIGKILL);
             return 0;
         }
+        if (WIFEXITED(status) || WIFSIGNALED(status) ) {
+            puts("exited");
+            return 1;
+        }
+
+
+
     }
 }
 
@@ -210,8 +280,18 @@ int main() {
     } else {
         int status;
         waitpid(pid, &status, 0);
-        ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESECCOMP);
-
+//        printf("[waitpid status: 0x%08x]\n", status);
+//        printf("pid:%d, ret:%d, status=%d, %s\n", getpid(), ret, status, strerror(errno));
+//        print_exit(status);
+//        puts("========");
+        child_pid = pid;
+        printf("%s\n", strerror(errno));
+        setpgid(pid,pid);
+        printf("child=%d\n", child_pid);
+        printf("%s\n", strerror(errno));
+        long ret = ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_TRACESECCOMP);
+        printf("ret=%ld,%s\n", ret, strerror(errno));
+        errno = 0;
         while (1) {
             if (wait_for_syscall(pid) != 0) break;
         }
